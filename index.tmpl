@@ -1,0 +1,13 @@
+<html lang="en">
+<head>
+    <title>Catpaper</title>
+</head>
+<body>
+{{range $key, $value := .}}
+<h1>{{$key}}</h1>
+{{range $value}}
+<a href="./wallpaper/{{.Path}}"><img height="{{.Height}}" width="{{.Width}}" src="./wallpaper/{{.Path}}"  alt="{{.Name}}" title="{{.Name}}"/></a>
+{{end}}
+{{end}}
+</body>
+</html>
