@@ -2,9 +2,12 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"os/signal"
 	"path/filepath"
+
+	"github.com/skratchdot/open-golang/open"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -30,5 +33,10 @@ func main() {
 
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, os.Kill, os.Interrupt)
+
+	if err := open.Run(fmt.Sprintf("http://localhost:%d", *port)); err != nil {
+		log.Err(err).Msg("could not open browser")
+	}
+
 	<-ch
 }

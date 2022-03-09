@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"image"
 	_ "image/jpeg"
 	_ "image/png"
@@ -82,7 +83,7 @@ func newWallpaper(dir, subdir, name string) (wallpaper, error) {
 		Dir:  subdir,
 		Name: name,
 	}
-	fi, err := os.Open(path.Join(dir, subdir, name))
+	fi, err := os.Open(filepath.Join(dir, subdir, name))
 	if err != nil {
 		return w, err
 	}
@@ -90,7 +91,7 @@ func newWallpaper(dir, subdir, name string) (wallpaper, error) {
 
 	info, _, err := image.DecodeConfig(fi)
 	if err != nil {
-		return w, err
+		return w, fmt.Errorf("could not decode %q: %w", name, err)
 	}
 	w.height = info.Height
 	w.width = info.Width
@@ -98,31 +99,43 @@ func newWallpaper(dir, subdir, name string) (wallpaper, error) {
 }
 
 func wallpapers(dir string) (map[string][]wallpaper, error) {
-	wallpapers := make(map[string][]wallpaper)
-	top, err := os.ReadDir(dir)
-	if err != nil {
+	wallpaperMap := make(map[string][]wallpaper)
+
+	if err := filepath.WalkDir(dir, func(walkPath string, walkInfo fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+
+		if walkInfo.IsDir() {
+			if strings.HasPrefix(walkInfo.Name(), ".") {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
+		if strings.HasPrefix(walkInfo.Name(), ".") {
+			return nil
+		}
+
+		walkDir := strings.TrimLeft(strings.TrimPrefix(filepath.Dir(walkPath), dir), "/")
+		wp, err := newWallpaper(dir, walkDir, walkInfo.Name())
+		if err != nil {
+			if errors.Is(err, image.ErrFormat) {
+				log.Err(err).Msg("format not registered")
+				return nil
+			}
+			return err
+		}
+
+		if wallpaperMap[walkDir] == nil {
+			wallpaperMap[walkDir] = make([]wallpaper, 0)
+		}
+		wallpaperMap[walkDir] = append(wallpaperMap[walkDir], wp)
+
+		return nil
+	}); err != nil {
 		return nil, err
 	}
 
-	for _, t := range top {
-		if !t.IsDir() || strings.HasPrefix(t.Name(), ".") {
-			continue
-		}
-		subdir := filepath.Join(dir, t.Name())
-		names, err := os.ReadDir(subdir)
-		if err != nil {
-			return nil, err
-		}
-
-		wallpapers[t.Name()] = make([]wallpaper, 0, len(wallpapers))
-		for _, file := range names {
-			wp, err := newWallpaper(dir, t.Name(), file.Name())
-			if err != nil {
-				return nil, err
-			}
-			wallpapers[t.Name()] = append(wallpapers[t.Name()], wp)
-		}
-	}
-
-	return wallpapers, nil
+	return wallpaperMap, nil
 }
