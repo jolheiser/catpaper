@@ -117,7 +117,7 @@ func wallpapers(dir string) (map[string][]wallpaper, error) {
 			return nil
 		}
 
-		walkDir := strings.TrimLeft(strings.TrimPrefix(filepath.Dir(walkPath), dir), "/")
+		walkDir := strings.TrimLeft(strings.TrimPrefix(filepath.Dir(walkPath), dir), `\/`)
 		wp, err := newWallpaper(dir, walkDir, walkInfo.Name())
 		if err != nil {
 			if errors.Is(err, image.ErrFormat) {
